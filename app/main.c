@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <string.h>
 #include "app_bsp.h"
+#include "queue.h"
 
 /*  States */
 #define IDLE         0u
@@ -23,7 +24,6 @@
 /**------------------------------------------------------------------------------------------------
 Brief.- Punto de entrada del programa
 -------------------------------------------------------------------------------------------------*/
-
 typedef struct  {
 
     uint8_t command;
@@ -33,29 +33,55 @@ typedef struct  {
 
 } CommandTypeDef;
 
+/*unsigned int    */
+/*short*/
+/*long */
+/*char     */
+/*float  */
+/*double*/
+/*  Almacenar los datos en una cola de espera generica y revisar la tarea del serial cada 10ms */
+/*  Presentacion de punteros con ejemplos visuales porrque a los punteros se les da un tipo
+ *  Casting a un puntero y su efecto */
+
+
 void Uart_Init( void );
 void Serial_Task( void );
 uint8_t CharToInt(char *hex);
 uint8_t Read_Buffer( uint8_t *Buffer, CommandTypeDef *Cmd );
 uint8_t Procces_Buffer( CommandTypeDef *Cmd );
 void Clear_Command( CommandTypeDef *Cmd );
+void UART_QUEUE_Init( void );
 
-UART_HandleTypeDef        Uart_Handle;                 /*  Structure for the UART configuration */
+UART_HandleTypeDef               Uart_Handle;                 /*  Structure for the UART configuration */
 CommandTypeDef                   Command_Rx;
 CommandTypeDef                   Command_Verify;
+/*  Parameters of the queue */
+QUEUE_HandleTypeDef     UART_Queue;
+uint8_t UART_QUEUE_Buffer[120] = { 0 };  // 1/115200*10 = 86us each 10ms 116.27 
 
+/*  Parameters of the UART */
 uint8_t UART_RxBuffer[ 50 ] = { 0 };
 uint8_t RxByte              = 0;
-__IO ITStatus Msg_Rx        = RESET;                    /*  Flag to indicate if Tx is free */
+/*__IO ITStatus Msg_Rx        = RESET;                    [>  Flag to indicate if Tx is free <]*/
 
 
 int main( void )
 {
+    uint32_t ticks_serial = 0;
+    
     HAL_Init();
+    Uart_Init();
+    UART_QUEUE_Init();
+
+    ticks_serial = HAL_GetTick();
 
     while( 1 ) 
     {
-        Serial_Task();
+        if ( ( HAL_GetTick() - ticks_serial ) >= 10u )
+        {
+            Serial_Task();
+            ticks_serial = HAL_GetTick();
+        }
     }
 
     return 0u;
@@ -80,44 +106,49 @@ void Uart_Init( void )
 }
 
 void HAL_UART_RxCpltCallback( UART_HandleTypeDef *huart ) /*  Callback function that backs up the characters arrived and informs when */
-{                                                            /*  this arrived the character \r wich means end of strinf */
-    
-    static uint32_t i = 0;
-    UART_RxBuffer[i]  = RxByte;               /* Data is backed up  */
-    i++;                                      /*  Move the index */
-
-    if( UART_RxBuffer[i-1] == '\r' )          /*  End of the string? */
-    {
-
-        Msg_Rx = SET;                         /*  Activate the flag of the complete string */
-        i      = 0;                           /*  Restar the index */
-
-    }
-    /*  Prepare the reception foor recieve only one byte */
-    HAL_UART_Receive_IT(&Uart_Handle,&RxByte,1);
-
+{  
+    HIL_QUEUE_Write( &UART_Queue, &RxByte);
+    HAL_UART_Receive_IT( &Uart_Handle, &RxByte, 1 );
 }
 
 void Serial_Task( void )
 {
     /*  States of the machine */
-    static uint8_t SERIAL_STATE;
+    static uint8_t SERIAL_STATE = IDLE;
     /*  Flags to chech */
     uint8_t syntax;
     uint8_t validity;
+    /*  Messages */
+    const uint8_t Ok_Msg[ 11 ]      = "-OK...\r";
+    const uint8_t Error_Msg_1[ 16 ] = "-ERROR syntax \r";
+    const uint8_t Error_Msg_2[ 16 ] = "-ERROR values \r";
+    /*  Index for the buffer of the UART */
+    uint8_t Idx                     = 0;
+    uint8_t Byte_Recived;
+    
 
     switch ( SERIAL_STATE ) 
     { 
 
         case IDLE:
 
-            if ( Msg_Rx == SET )
+            while ( HIL_QUEUE_IsEmpty( &UART_Queue ) == 0u )
             {
-                SERIAL_STATE = READ_MSG;
-            }
-            else 
-            {
-                SERIAL_STATE = CLEAN;
+                HAL_NVIC_DisableIRQ( USART2_LPUART2_IRQn );        /*  Disable the interruption */
+                HIL_QUEUE_Read( &UART_Queue, &Byte_Recived ); 
+                HAL_NVIC_EnableIRQ( USART2_LPUART2_IRQn );         /*  Enable the interruption again */
+
+                if ( Byte_Recived == (uint8_t)'\r' ) 
+                {
+                    Idx = 0;
+                    SERIAL_STATE = READ_MSG;
+                    break;
+                }
+                else 
+                {
+                    UART_RxBuffer[ Idx ] = Byte_Recived;
+                    Idx++;
+                }
             }
 
             break;
@@ -132,6 +163,7 @@ void Serial_Task( void )
             }
             else 
             {
+                HAL_UART_Transmit( &Uart_Handle, ( uint8_t* )Error_Msg_1, sizeof( Error_Msg_1 ), 5000 );
                 SERIAL_STATE = CLEAN;
             }
 
@@ -147,6 +179,7 @@ void Serial_Task( void )
             }
             else 
             {
+                HAL_UART_Transmit( &Uart_Handle, ( uint8_t* )Error_Msg_2, sizeof( Error_Msg_2 ), 5000 );
                 SERIAL_STATE = CLEAN;
             }
 
@@ -154,6 +187,7 @@ void Serial_Task( void )
 
         case SET_MSG:
 
+            HAL_UART_Transmit( &Uart_Handle, ( uint8_t* )Ok_Msg, sizeof( Ok_Msg ), 5000 );
             Command_Verify = Command_Rx;
             SERIAL_STATE = CLEAN;
 
@@ -212,13 +246,13 @@ uint8_t Read_Buffer( uint8_t *Buffer, CommandTypeDef *Cmd )
         /*  Check and classify the next part of the command */
         if ( strcmp( param, "TIME" ) == 0 )
         {
-            Cmd->param_1 = TIME;                   /*  Assign the command */
+            Cmd->command = TIME;                   /*  Assign the command */
             /*  Store the params */
             value        = strtok( NULL, "," );
             Cmd->param_1 = CharToInt( value );
             value        = strtok( NULL, "," );
             Cmd->param_2 = CharToInt( value );
-            value        = strtok( NULL, "," );
+            value        = strtok( NULL, "\r" );
             Cmd->param_3 = CharToInt( value );
 
             /*  Set the flag of OK */
@@ -226,13 +260,13 @@ uint8_t Read_Buffer( uint8_t *Buffer, CommandTypeDef *Cmd )
         }
         else if ( strcmp( param, "DATE" ) == 0 )
         {
-            Cmd->param_1 = DATE;                   /*  Assign the command */
+            Cmd->command = DATE;                   /*  Assign the command */
             /*  Store the params */
             value        = strtok( NULL, "," );
             Cmd->param_1 = CharToInt( value );
             value        = strtok( NULL, "," );
             Cmd->param_2 = CharToInt( value );
-            value        = strtok( NULL, "," );
+            value        = strtok( NULL, "\r" );
             value++;
             value++;
             Cmd->param_3 = CharToInt( value );
@@ -242,14 +276,12 @@ uint8_t Read_Buffer( uint8_t *Buffer, CommandTypeDef *Cmd )
         }
         else if ( strcmp( param, "ALARM" ) == 0 )
         {
-            Cmd->param_1 = ALARM;                   /*  Assign the command */
+            Cmd->command = ALARM;                   /*  Assign the command */
             /*  Store the params */
             value        = strtok( NULL, "," );
             Cmd->param_1 = CharToInt( value );
-            value        = strtok( NULL, "," );
+            value        = strtok( NULL, "\r" );
             Cmd->param_2 = CharToInt( value );
-            value        = strtok( NULL, "," );
-            Cmd->param_3 = CharToInt( value );
 
             /*  Set the flag of OK */
             status = BUFFER_OK;
@@ -311,7 +343,7 @@ uint8_t Procces_Buffer( CommandTypeDef *Cmd )
                     case 6:
                     case 9:
                     case 11:               /*  Months with 30 days */
-                        if ( Cmd->param_1 <= 31u )
+                        if ( Cmd->param_1 <= 30u )
                         {
                             status = BUFFER_OK;
                         }
@@ -380,6 +412,17 @@ void Clear_Command( CommandTypeDef *Cmd )
     Cmd->command = 0;
     Cmd->param_1 = 0;
     Cmd->param_2 = 0;
-    Cmd->param_2 = 0;
+    Cmd->param_3 = 0;
     
+}
+
+void UART_QUEUE_Init( void )
+{
+
+   UART_Queue.Buffer   = ( void* )UART_QUEUE_Buffer;
+   UART_Queue.Elements = 120;
+   UART_Queue.Size     = sizeof( uint8_t );
+
+   HIL_QUEUE_Init( &UART_Queue );
+
 }

@@ -4,6 +4,7 @@ TARGET = temp
 SRCS  = main.c app_ints.c app_msps.c startup_stm32g0b1xx.s system_stm32g0xx.c stm32g0xx_hal_rcc_ex.c
 SRCS += stm32g0xx_hal.c stm32g0xx_hal_cortex.c stm32g0xx_hal_rcc.c stm32g0xx_hal_flash.c stm32g0xx_hal_dma.c
 SRCS += stm32g0xx_hal_gpio.c stm32g0xx_hal_usart.c stm32g0xx_hal_uart.c stm32g0xx_hal_uart_ex.c
+SRCS += queue.c
 #archivo linker a usar
 LINKER = linker.ld
 #Simbolos gloobales del programa (#defines globales)
