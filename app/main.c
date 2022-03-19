@@ -3,7 +3,6 @@
 #include <string.h>
 #include "app_bsp.h"
 #include "queue.h"
-#include "stm32g0xx_hal_uart.h"
 
 /*  States */
 #define IDLE         0u
