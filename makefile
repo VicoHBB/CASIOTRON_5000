@@ -63,9 +63,6 @@ build :
 clean :
 	rm -rf Output
 
-misra_test :
-	cppcheck --addon=misra.json --template=gcc --inline-suppr --force --std=c99 --quiet app/
-
 #---flash the image into the mcu-------------------------------------------------------------------
 flash :
 	openocd -f interface/stlink.cfg -f target/stm32g0x.cfg -c "program Build/$(TARGET).hex verify reset" -c shutdown
@@ -78,3 +75,6 @@ open :
 #---launch a debug session, NOTE: is mandatory to previously open a debug server session-----------
 debug :
 	arm-none-eabi-gdb Build/$(TARGET).elf -iex "set auto-load safe-path /"
+
+misra_test :
+	cppcheck --addon=misra.json --template=gcc --inline-suppr --force --std=c99 --quiet app/

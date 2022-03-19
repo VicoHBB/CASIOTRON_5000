@@ -1,3 +1,4 @@
 Build/
 .vim/
+compile_commands.json
 tags
