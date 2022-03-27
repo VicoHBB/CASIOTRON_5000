@@ -8,6 +8,8 @@ set width 0
 #---connect and load program
 target remote localhost:2331
 #mon arm semihosting enable
+monitor semihosting enable
+monitor semihosting IOClient 2
 load
 mon reset
 break main

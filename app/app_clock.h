@@ -2,21 +2,32 @@
 #define APP_CLOCK_H_
 
 #include "app_bsp.h"
-#include "stm32g0xx_hal_rtc.h"
 #include <stdint.h>
 
-void Clock_Init( void );  /*  Init all the configs of the clock */
-void INT_Config( void ); /*  Init the interruptions */
-void RTC_Init( void );   /*  Init the RTC */
-void Clock_Task( void );  /*  Do the procces of the clock */
-uint8_t Set_Date( RTC_DateTypeDef *RTC_date, uint8_t day, uint8_t month, uint8_t year );    /*  Set the date of RTC */ 
-uint8_t Set_Time( RTC_TimeTypeDef *RTC_Time, uint8_t hour, uint8_t min, uint8_t sec );     /*  Set the time of RTC */
-uint8_t Set_Alarm( RTC_AlarmTypeDef *RTC_Alarm, uint8_t hour, uint8_t min );               /*  Set the alarm of RTC */
+/*  states of clock task */
+#define IDLE_CLK      10u
+#define HOUR_DATE     11u
+#define SHOW_ALARM    12u
+#define ALARM_ON      13u
+#define SET_PARAM     14u
+#define PRINT_HD      15u
+#define PRINT_ALARM   16u
+#define PRINT_WAKE    17u
+#define DISABLE_ALARM 18u
 
-
-
-
-
-
+void Clock_Init( void );    /*  Init all the configs of the clock */
+void GPIO_C_Config( void ); /*  Init the GPIO of the board */
+void INT_Config( void );    /*  Init the interruptions */
+void RTC_Init( void );      /*  Init the RTC */
+void Clock_Task( void );    /*  Do the procces of the clock */
+void Set_Date( RTC_DateTypeDef *RTC_Date, uint8_t day, uint8_t month, uint8_t year ); /*  Set the date of RTC */ 
+void Set_Time( RTC_TimeTypeDef *RTC_Time, uint8_t hour, uint8_t min, uint8_t sec );   /*  Set the time of RTC */
+void Set_Alarm( RTC_AlarmTypeDef *RTC_Alarm, uint8_t hour, uint8_t min );             /*  Set the alarm of RTC */
+void Structure_Processign( void );                         /*  Proces all the strucure */
+void Disp_Date( RTC_DateTypeDef *Date );                   /*  Show the date in LCD */
+void Disp_Hour( RTC_TimeTypeDef *Time );                   /*  Show The day in LCD */
+void Disp_Alarm( RTC_AlarmTypeDef *Alarm );                /*  Print the params of the alarm */
+void Disp_Alarm_On( RTC_TimeTypeDef *Time, uint8_t counter ); /*  Print the alarm on state */
+uint16_t WeekDay( uint8_t day, uint8_t month, uint16_t year );              /*  Calculate the day of the week */
 
 #endif

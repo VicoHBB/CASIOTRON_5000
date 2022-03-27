@@ -18,11 +18,12 @@
 void Serial_Init( void );
 void Uart_Init( void );
 void Serial_Task( void );
-uint8_t CharToInt(char *hex);
+uint8_t CharToInt( char *hex );
 uint8_t Read_Buffer( uint8_t *Buffer, SERIAL_MsgTypeDef *Msg );
 uint8_t Procces_Buffer( SERIAL_MsgTypeDef *Cmd );
 void Clear_Command( SERIAL_MsgTypeDef *Cmd );
 void UART_QUEUE_Init( void );
+void Msg_Queue_Init( void );
 
 
 #endif

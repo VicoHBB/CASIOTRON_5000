@@ -2,6 +2,7 @@
 #define _BSP_H_
 
 #include "stm32g0xx.h"
+#include <stdio.h>
 #include <stdint.h>
 #include <string.h>
 #include "queue.h"

@@ -1,12 +1,15 @@
 #include "app_bsp.h"
 #include "app_serial.h"
+#include "queue.h"
 
 UART_HandleTypeDef                  Uart_Handle;             /*  Structure for the UART configuration */
 SERIAL_MsgTypeDef                   Msg_Rx;
 SERIAL_MsgTypeDef                   Msg_Verify;
 /*  Parameters of the queue */
 QUEUE_HandleTypeDef     UART_Queue;
+QUEUE_HandleTypeDef     Serial_Msg_2_Read;
 uint8_t UART_QUEUE_Buffer[120] = { 0 };  // 1/115200*10 = 86us each 10ms 116.27 
+SERIAL_MsgTypeDef       Msg_Queue_Buffer[10] = { 0 };
 
 /*  Parameters of the UART */
 uint8_t UART_RxBuffer[ 50 ] = { 0 };
@@ -14,8 +17,11 @@ uint8_t RxByte              = 0;
 
 void Serial_Init( void )
 {
+    
     Uart_Init();
     UART_QUEUE_Init();
+    Msg_Queue_Init();
+
 }
 
 void Uart_Init( void )
@@ -50,9 +56,9 @@ void Serial_Task( void )
     uint8_t syntax;
     uint8_t validity;
     /*  Messages */
-    const uint8_t Ok_Msg[ 11 ]      = "-OK...\r";
-    const uint8_t Error_Msg_1[ 16 ] = "-ERROR syntax \r";
-    const uint8_t Error_Msg_2[ 16 ] = "-ERROR values \r";
+    const uint8_t Ok_Msg[ 11 ]      = "-OK...\n\r";
+    const uint8_t Error_Msg_1[ 16 ] = "-ERROR syntax \n\r";
+    const uint8_t Error_Msg_2[ 16 ] = "-ERROR values \n\r";
     /*  Index for the buffer of the UART */
     uint8_t Idx                     = 0;
     uint8_t Byte_Recived;
@@ -119,6 +125,7 @@ void Serial_Task( void )
 
             HAL_UART_Transmit( &Uart_Handle, ( uint8_t* )Ok_Msg, sizeof( Ok_Msg ), 5000 );
             Msg_Verify = Msg_Rx;
+            HIL_QUEUE_Write( &Serial_Msg_2_Read, &Msg_Verify);
             SERIAL_STATE = CLEAN;
 
             break;
@@ -158,6 +165,7 @@ uint8_t CharToInt(char *hex) {
     return val;
 
 }
+
 uint8_t Read_Buffer( uint8_t *Buffer, SERIAL_MsgTypeDef *Msg )
 {
 
@@ -355,4 +363,12 @@ void UART_QUEUE_Init( void )
 
    HIL_QUEUE_Init( &UART_Queue );
 
+}
+
+void Msg_Queue_Init( void )
+{
+    Serial_Msg_2_Read.Buffer = ( void* )Msg_Queue_Buffer;
+    Serial_Msg_2_Read.Elements = 10;
+    Serial_Msg_2_Read.Size = sizeof( SERIAL_MsgTypeDef );
+    HIL_QUEUE_Init( &Serial_Msg_2_Read );
 }
