@@ -2,18 +2,15 @@
 #include "app_serial.h"
 #include "queue.h"
 
+/* cppcheck-suppress misra-c2012-8.4; This fuction is used in app_ints file */
 UART_HandleTypeDef                  Uart_Handle;             /*  Structure for the UART configuration */
-SERIAL_MsgTypeDef                   Msg_Rx;
-SERIAL_MsgTypeDef                   Msg_Verify;
 /*  Parameters of the queue */
-QUEUE_HandleTypeDef     UART_Queue;
+static QUEUE_HandleTypeDef     UART_Queue;
+/* cppcheck-suppress misra-c2012-8.4; This fuction is declared in a reserved file of HAL library */
 QUEUE_HandleTypeDef     Serial_Msg_2_Read;
-uint8_t UART_QUEUE_Buffer[120] = { 0 };  // 1/115200*10 = 86us each 10ms 116.27 
-SERIAL_MsgTypeDef       Msg_Queue_Buffer[10] = { 0 };
 
 /*  Parameters of the UART */
-uint8_t UART_RxBuffer[ 50 ] = { 0 };
-uint8_t RxByte              = 0;
+static uint8_t RxByte              = 0;
 
 void Serial_Init( void )
 {
@@ -42,10 +39,14 @@ void Uart_Init( void )
     
 }
 
+/* cppcheck-suppress misra-c2012-8.4; This fuction is declared in a reserved file of HAL library */
 void HAL_UART_RxCpltCallback( UART_HandleTypeDef *huart ) /*  Callback function that backs up the characters arrived and informs when */
 {  
-    HIL_QUEUE_Write( &UART_Queue, &RxByte);
+
+    ( void )huart;
+    ( void )HIL_QUEUE_Write( &UART_Queue, &RxByte);
     HAL_UART_Receive_IT( &Uart_Handle, &RxByte, 1 );
+
 }
 
 void Serial_Task( void )
@@ -60,8 +61,12 @@ void Serial_Task( void )
     const uint8_t Error_Msg_1[ 16 ] = "-ERROR syntax \n\r";
     const uint8_t Error_Msg_2[ 16 ] = "-ERROR values \n\r";
     /*  Index for the buffer of the UART */
+    static uint8_t UART_RxBuffer[ 50 ] = { 0 };
     uint8_t Idx                     = 0;
     uint8_t Byte_Recived;
+    /* Messager to read */
+    SERIAL_MsgTypeDef                   Msg_Rx;
+    SERIAL_MsgTypeDef                   Msg_Verify;
 
     switch ( SERIAL_STATE ) 
     { 
@@ -71,7 +76,7 @@ void Serial_Task( void )
             while ( HIL_QUEUE_IsEmpty( &UART_Queue ) == 0u )
             {
                 HAL_NVIC_DisableIRQ( USART2_LPUART2_IRQn );        /*  Disable the interruption */
-                HIL_QUEUE_Read( &UART_Queue, &Byte_Recived ); 
+                ( void )HIL_QUEUE_Read( &UART_Queue, &Byte_Recived ); 
                 HAL_NVIC_EnableIRQ( USART2_LPUART2_IRQn );         /*  Enable the interruption again */
 
                 if ( Byte_Recived == (uint8_t)'\r' ) 
@@ -99,6 +104,7 @@ void Serial_Task( void )
             }
             else 
             {
+                /* cppcheck-suppress misra-c2012-11.8; This variable is not used in a procces, is justo a message to sen */
                 HAL_UART_Transmit( &Uart_Handle, ( uint8_t* )Error_Msg_1, sizeof( Error_Msg_1 ), 5000 );
                 SERIAL_STATE = CLEAN;
             }
@@ -115,6 +121,7 @@ void Serial_Task( void )
             }
             else 
             {
+                /* cppcheck-suppress misra-c2012-11.8; This variable is not used in a procces, is justo a message to sen */
                 HAL_UART_Transmit( &Uart_Handle, ( uint8_t* )Error_Msg_2, sizeof( Error_Msg_2 ), 5000 );
                 SERIAL_STATE = CLEAN;
             }
@@ -123,9 +130,13 @@ void Serial_Task( void )
 
         case SET_MSG:
 
+                /* cppcheck-suppress misra-c2012-11.8; This variable is not used in a procces, is justo a message to sen */
             HAL_UART_Transmit( &Uart_Handle, ( uint8_t* )Ok_Msg, sizeof( Ok_Msg ), 5000 );
+
             Msg_Verify = Msg_Rx;
-            HIL_QUEUE_Write( &Serial_Msg_2_Read, &Msg_Verify);
+
+            ( void )HIL_QUEUE_Write( &Serial_Msg_2_Read, &Msg_Verify);
+
             SERIAL_STATE = CLEAN;
 
             break;
@@ -133,7 +144,7 @@ void Serial_Task( void )
         case CLEAN:
 
             Clear_Command( &Msg_Rx );
-            memset( &UART_RxBuffer[0], 0, 50);
+            ( void )memset( &UART_RxBuffer[0], 0, 50);
             SERIAL_STATE = IDLE;
 
             break;
@@ -157,9 +168,30 @@ uint8_t CharToInt(char *hex) {
     
     while ( *hex_aux != '\0' ) 
     {
-        val += ( ( uint8_t )*hex_aux - ( uint8_t )'0')*(index[i] ); 
+        val += ( ( uint8_t )*hex_aux - ( uint8_t )'0') * ( index[i] ); 
         hex_aux++;
         i++;
+    }
+
+    return val;
+
+}
+
+uint16_t FourCharToInt( char *hex )
+{
+
+    char *hex_aux     = hex;
+    uint16_t val      = 0;
+    uint16_t i        = 0;
+    uint16_t index[4] = { 1000, 100, 10, 1 };
+
+    while ( *hex_aux != '\0' ) 
+    {
+
+        val += ( ( uint16_t )*hex_aux - ( uint16_t )'0' ) * ( index[ i ] );
+        hex_aux++;
+        i++;
+        
     }
 
     return val;
@@ -221,6 +253,26 @@ uint8_t Read_Buffer( uint8_t *Buffer, SERIAL_MsgTypeDef *Msg )
             value        = strtok( NULL, "\r" );
             Msg->param_2 = CharToInt( value );
 
+            /*  Set the flag of OK */
+            status = BUFFER_OK;
+        }
+        else if ( strcmp( param, "HEARTBEAT") == 0 ) 
+        {
+            Msg->msg = HEARTBEAT;
+            /*  Store the params */
+            value        = strtok( NULL, "\r" );
+            Msg->param_1 = FourCharToInt( value );
+            /*  Set the flag of OK */
+            status = BUFFER_OK;
+        }
+        else if ( strcmp( param, "TEMP" )  == 0 )
+        {
+            Msg->msg = TEMP;
+            /*  Store the params */
+            value        = strtok( NULL, "," );
+            Msg->param_1 = CharToInt( value );
+            value        = strtok( NULL, "\r" );
+            Msg->param_2 = CharToInt( value );
             /*  Set the flag of OK */
             status = BUFFER_OK;
         }
@@ -291,7 +343,7 @@ uint8_t Procces_Buffer( SERIAL_MsgTypeDef *Msg )
                         }
                         break;
                     case 2:                /*  February depends of the year */
-                        if ( ( Msg->param_3 % 4 ) == 0u )
+                        if ( ( Msg->param_3 % 4u ) == 0u )
                         {
                             if ( Msg->param_1 <= 29u  )
                             {
@@ -334,6 +386,26 @@ uint8_t Procces_Buffer( SERIAL_MsgTypeDef *Msg )
                 status = BUFFER_WRONG;
             }
             break;
+        case HEARTBEAT:
+            if ( ( ( Msg->param_1 % 50u  ) == 0u ) && ( Msg->param_1 >= 50u ) && ( Msg->param_1 <= 1000u ) )
+            {
+                status = BUFFER_OK;
+            }
+            else 
+            {
+                status = BUFFER_WRONG;
+            }
+            break;
+        case TEMP:
+            if ( ( Msg->param_1 <= 99u ) && ( Msg->param_2 <= 99u  ) )
+            {
+                status = BUFFER_OK;
+            }
+            else 
+            {
+                status = BUFFER_WRONG; 
+            }
+            break;
         default:
             status = BUFFER_WRONG;
             break;
@@ -357,6 +429,8 @@ void Clear_Command( SERIAL_MsgTypeDef *Msg )
 void UART_QUEUE_Init( void )
 {
 
+    static uint8_t UART_QUEUE_Buffer[120] = { 0 };  // 1/115200*10 = 86us each 10ms 116.27 
+
    UART_Queue.Buffer   = ( void* )UART_QUEUE_Buffer;
    UART_Queue.Elements = 120;
    UART_Queue.Size     = sizeof( uint8_t );
@@ -367,8 +441,14 @@ void UART_QUEUE_Init( void )
 
 void Msg_Queue_Init( void )
 {
+
+    static SERIAL_MsgTypeDef       Msg_Queue_Buffer[10] = { 0 };
+
     Serial_Msg_2_Read.Buffer = ( void* )Msg_Queue_Buffer;
     Serial_Msg_2_Read.Elements = 10;
     Serial_Msg_2_Read.Size = sizeof( SERIAL_MsgTypeDef );
+
     HIL_QUEUE_Init( &Serial_Msg_2_Read );
+
 }
+

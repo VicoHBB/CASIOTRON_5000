@@ -1,7 +1,19 @@
+#include "stm32g0b1xx.h"
 #include "stm32g0xx.h"
 #include <stdint.h>
 #include "app_bsp.h"
 
+/*  Pins of SPI */
+#define CLK    GPIO_PIN_3   /*  Pin_B3 */
+#define MISO   GPIO_PIN_4   /*  Pin_B4 */
+#define MOSI   GPIO_PIN_5   /*  Pin_B5 */
+
+/*  Pins of LCD */
+#define CS     GPIO_PIN_9   /*  Pin_B3 */
+#define RST    GPIO_PIN_8   /*  Pin_B4 */
+#define RS     GPIO_PIN_6   /*  Pin_B5 */
+
+/* cppcheck-suppress misra-c2012-8.4; This fuction is declared in a reserved file of HAL library */
 void HAL_MspInit( void )
 {
 
@@ -28,6 +40,7 @@ void HAL_MspInit( void )
     
 }
 
+/* cppcheck-suppress misra-c2012-8.4; This fuction is declared in a reserved file of HAL library */
 void HAL_UART_MspInit( UART_HandleTypeDef *huart)
 {
 
@@ -53,8 +66,11 @@ void HAL_UART_MspInit( UART_HandleTypeDef *huart)
 
 }
 
-void HAL_RTC_MspInit(RTC_HandleTypeDef *RtcHandle)
+/* cppcheck-suppress misra-c2012-8.4; This fuction is declared in a reserved file of HAL library */
+void HAL_RTC_MspInit( RTC_HandleTypeDef *RtcHandle )
 {
+
+    ( void )RtcHandle;
 
     RCC_OscInitTypeDef        RCC_OscInitStruct;
     RCC_PeriphCLKInitTypeDef  RCC_RTCPeriphClkInitStruct; 
@@ -74,5 +90,101 @@ void HAL_RTC_MspInit(RTC_HandleTypeDef *RtcHandle)
     /*  Activate the interruptions */
     HAL_NVIC_SetPriority(RTC_TAMP_IRQn,2,0);
     HAL_NVIC_EnableIRQ(RTC_TAMP_IRQn);
+
+}
+
+/* cppcheck-suppress misra-c2012-8.4; This fuction is declared in a reserved file of HAL library */
+void HAL_SPI_MspInit( SPI_HandleTypeDef *hspi )
+{
+
+    ( void )hspi;
+    GPIO_InitTypeDef         GPIO_InitStruct;
+
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_SPI1_CLK_ENABLE();
+
+    GPIO_InitStruct.Pin       = CLK | MISO | MOSI;
+    GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF0_SPI1;
+
+    HAL_GPIO_Init( GPIOB, &GPIO_InitStruct );
+
+}
+
+void MOD_LCD_MspInit( LCD_HandleTypeDef *hlcd )
+{
+    
+    ( void )hlcd;
+
+    GPIO_InitTypeDef          GPIO_InitStruct;
+
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+
+    GPIO_InitStruct.Pin         = CS | RST | RS;
+    GPIO_InitStruct.Mode        = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull        = GPIO_NOPULL;
+    GPIO_InitStruct.Speed       = GPIO_SPEED_FREQ_HIGH;
+
+    HAL_GPIO_Init( GPIOC, &GPIO_InitStruct );
+
+}
+
+/* cppcheck-suppress misra-c2012-8.4; This fuction is declared in a reserved file of HAL library */
+void HAL_TIM_Base_MspInit( TIM_HandleTypeDef *htim )
+{
+    
+    ( void )htim;
+
+    __HAL_RCC_TIM6_CLK_ENABLE();
+
+    HAL_NVIC_SetPriority( TIM6_DAC_LPTIM1_IRQn, 0, 0 );
+    HAL_NVIC_EnableIRQ( TIM6_DAC_LPTIM1_IRQn );
+
+}
+
+/* cppcheck-suppress misra-c2012-8.4; This fuction is declared in a reserved file of HAL library */
+void HAL_I2C_MspInit( I2C_HandleTypeDef* hi2c )
+{
+
+    ( void )hi2c;
+    GPIO_InitTypeDef           GPIO_InitStruct;
+    RCC_PeriphCLKInitTypeDef   PeriphClkInit;
+
+    /*  Enable both clocks */
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_I2C1_CLK_ENABLE(); 
+
+    /*  Configuration of the clock for the peripherial*/
+    PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_I2C1;
+    PeriphClkInit.I2c1ClockSelection    = RCC_I2C1CLKSOURCE_HSI;
+
+    HAL_RCCEx_PeriphCLKConfig( &PeriphClkInit );
+
+    /*  Configure the pins PB8(SCL) & PB9(SDA) */
+    GPIO_InitStruct.Pin       = GPIO_PIN_8 | GPIO_PIN_9;
+    GPIO_InitStruct.Mode      = GPIO_MODE_AF_OD;
+    GPIO_InitStruct.Pull      = GPIO_PULLUP; 
+    GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_HIGH; 
+    GPIO_InitStruct.Alternate = GPIO_AF6_I2C1;
+
+    HAL_GPIO_Init( GPIOB, &GPIO_InitStruct );
+
+}
+
+void MOD_TEMP_MspInit( TEMP_HandleTypeDef *htemp )
+{
+    /*  Config the pin C5 for the alert */
+    ( void )htemp;
+    GPIO_InitTypeDef           Alert;
+
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+
+    Alert.Pin       = GPIO_PIN_5;
+    Alert.Mode      = GPIO_MODE_INPUT;
+    Alert.Pull      = GPIO_PULLUP;
+    Alert.Speed     = GPIO_SPEED_FREQ_HIGH;
+
+    HAL_GPIO_Init( GPIOC, &Alert );
 
 }

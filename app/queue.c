@@ -42,25 +42,27 @@ void HIL_QUEUE_Init( QUEUE_HandleTypeDef *hqueue )
  */
 uint8_t HIL_QUEUE_Write( QUEUE_HandleTypeDef *hqueue, void *data )
 {
-   uint8_t status; 
-
-   if ( hqueue->Full == 0u )
-   {
-      ( void )memcpy( ( ( uint8_t* )hqueue->Buffer + ( hqueue->Head * hqueue->Size ) ) , data, hqueue->Size ); 
-      hqueue->Head  = ( hqueue->Head + 1u ) % hqueue->Elements;
-      hqueue->Empty = 0u;
-      status        = OK;
-      if ( hqueue->Head == hqueue->Tail ) 
-      {
-          hqueue->Full = 1u;
-      }
-   }
-   else 
-   {
-       status       = WRONG;
-   }
-
-   return status;
+    uint8_t status; 
+ 
+    if ( hqueue->Full == 0u )
+    {
+       /* cppcheck-suppress misra-c2012-18.4; Pointer arithmetic is required for this procces */
+       /* cppcheck-suppress misra-c2012-11.5; This cast ensures that the pointer moves 1 byte */
+       ( void )memcpy( ( ( uint8_t* )hqueue->Buffer + ( hqueue->Head * hqueue->Size ) ) , data, hqueue->Size ); 
+       hqueue->Head  = ( hqueue->Head + 1u ) % hqueue->Elements;
+       hqueue->Empty = 0u;
+       status        = OK;
+       if ( hqueue->Head == hqueue->Tail ) 
+       {
+           hqueue->Full = 1u;
+       }
+    }
+    else 
+    {
+        status       = WRONG;
+    }
+ 
+    return status;
 }
 
 /*! \brief HIL_QUEUE_Read
@@ -77,6 +79,8 @@ uint8_t HIL_QUEUE_Read( QUEUE_HandleTypeDef *hqueue, void *data)
 
     if ( hqueue->Empty == 0u )
     {
+        /* cppcheck-suppress misra-c2012-18.4; Pointer arithmetic is required for this procces */
+        /* cppcheck-suppress misra-c2012-11.5; This cast ensures that the pointer moves 1 byte */
         ( void )memcpy( data, ( ( uint8_t* )hqueue->Buffer + ( hqueue->Tail * hqueue->Size ) ), hqueue->Size );
         hqueue->Tail = ( hqueue->Tail + 1u ) % hqueue->Elements;
         hqueue->Full = 0u;

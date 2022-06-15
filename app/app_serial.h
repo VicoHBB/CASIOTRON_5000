@@ -19,6 +19,7 @@ void Serial_Init( void );
 void Uart_Init( void );
 void Serial_Task( void );
 uint8_t CharToInt( char *hex );
+uint16_t FourCharToInt( char *hex );
 uint8_t Read_Buffer( uint8_t *Buffer, SERIAL_MsgTypeDef *Msg );
 uint8_t Procces_Buffer( SERIAL_MsgTypeDef *Cmd );
 void Clear_Command( SERIAL_MsgTypeDef *Cmd );
