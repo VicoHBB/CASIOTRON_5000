@@ -68,7 +68,7 @@ int main( void )
         }
         else 
         {
-         
+            ticks_wd = Timer_GetTick();
         }
     }
 
