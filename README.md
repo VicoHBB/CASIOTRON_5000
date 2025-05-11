@@ -16,3 +16,19 @@ This project includes the use of a scheduler to manage tasks in a
 deterministic way, as well as the use of state machines for concurrent
 execution, thus emulating a real-time process. Finally, the MISRA
 standard was followed for the code development.
+
+
+---
+
+<!--toc:start-->
+- [CASIOTRON_5000](#casiotron5000)
+  - [Dependencies](#dependencies)
+<!--toc:end-->
+
+---
+
+
+## Dependencies
+```sh
+yay -S gcc-arm-none-eabi-bin cpcheck # Or use paru
+```

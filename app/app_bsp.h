@@ -9,7 +9,7 @@
 #include "temp.h"
 
 /*  Parameters of the structure */
-#define NONE      0u 
+#define NONE      0u
 #define TIME      1u
 #define DATE      2u
 #define ALARM     3u
@@ -18,7 +18,7 @@
 
 
 typedef struct
-{  
+{
 
     uint8_t    msg;      // Type of message
     uint16_t   param_1;   // Hour or day
